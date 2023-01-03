@@ -1,0 +1,10 @@
+services:
+  tunnel-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    command: ["--port", "3000", "--domain", "tunnel.amal.sh", "--secure", "true", "--config", "/app/config.json"]
+    restart: "always"
+    network_mode: "host"
