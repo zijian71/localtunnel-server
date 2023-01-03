@@ -8,6 +8,7 @@ import Router from "koa-router";
 
 import Config from "./lib/Config";
 import ClientManager from "./lib/ClientManager";
+import { handleAuth } from "./lib/Auth";
 
 const debug = Debug("localtunnel:server");
 
@@ -57,8 +58,19 @@ export default function (opt) {
 
   // root endpoint
   app.use(async (ctx, next) => {
-    let apiKeyConfig;
     const path = ctx.request.path;
+
+    let apiKeyConfig;
+    const apiKey = ctx.request.headers["x-api-key"];
+    try {
+      apiKeyConfig = handleAuth(config, apiKey);
+    } catch (err) {
+      ctx.status = 403;
+      ctx.body = {
+        message: err.message,
+      };
+      return;
+    }
 
     // skip anything not on the root path
     if (path !== "/") {
@@ -68,23 +80,6 @@ export default function (opt) {
 
     const isNewClientRequest = ctx.query["new"] !== undefined;
     if (isNewClientRequest) {
-      const apiKey = ctx.request.headers["x-api-key"];
-      if (apiKey === undefined) {
-        ctx.status = 403;
-        ctx.body = {
-          message: "pass x-api-key in headers",
-        };
-        return;
-      } else {
-        apiKeyConfig = config.get_config_for_user(apiKey);
-        if (apiKeyConfig && apiKeyConfig.length === 0) {
-          ctx.status = 403;
-          ctx.body = {
-            message: "invalid x-api-key",
-          };
-          return;
-        }
-      }
       const reqId = hri.random();
       debug(
         "making new client with id %s for user %s",
